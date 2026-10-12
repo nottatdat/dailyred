@@ -39,10 +39,15 @@ scripts/setup-macos.sh      # ARM cross-compiler + libpng into .toolchain/ (~1 G
 scripts/get-pokefirered.sh  # pret/pokefirered at a pinned commit + patches/
 scripts/fetch-vendor.sh     # emulator, emulator core and font into web/vendor/
 scripts/build-rom.sh        # builds the Daily Red ROM (pokefirered/pokefirered_modern.gba)
-node scripts/serve.mjs      # open http://localhost:8080
 ```
 
 `setup-macos.sh` picks the right compiler for Intel or Apple Silicon Macs.
+
+These steps build and test the ROM only (open
+`pokefirered/pokefirered_modern.gba` in an emulator). Making the patches the
+website serves (`scripts/make-patch.sh`) currently needs Flips and agbcc, which
+only `scripts/setup-linux.sh` installs, so for a playable site follow the Linux
+steps below.
 
 ## Quick start (Linux)
 
@@ -351,7 +356,9 @@ a fresh visitor, a win (stats, locked until tomorrow, countdown, survives a
 reload), the same team in a second browser that day, a loss the next day,
 leaving mid-battle (counts as a loss), a missed day (streaks reset), and a
 practice run (`?seed=`, not recorded). It also checks the 3× (720×480)
-screen, RED's sprite, the phone layout and touch d-pad, and the download-error
+screen, that no RED sprite is on the page, the ROM intake (wrong file rejected,
+renamed ROM accepted, remembered after reload, "Forget my ROM", works without
+IndexedDB, "Load ROM" reachable by keyboard), the phone layout and touch d-pad, and the download-error
 screen with "Try again".
 
 **Checking by hand:** open `http://localhost:8080/?seed=42` for a practice run
