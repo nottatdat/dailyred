@@ -22,7 +22,6 @@
         <div class="screen" id="screen">
           <div class="card card-title">
             <div class="snow" aria-hidden="true"></div>
-            <img class="red-sprite" src="game/red.png" width="64" height="64" alt="RED">
             <dl class="stats">
               <div><dt>Wins</dt><dd id="stat-wins">0</dd></div>
               <div><dt>Losses</dt><dd id="stat-losses">0</dd></div>
@@ -30,6 +29,12 @@
               <div><dt>Day streak</dt><dd id="stat-day-streak">0</dd></div>
             </dl>
             <button class="button button-play" id="play" type="button">Play</button>
+            <div class="rom-intake" id="rom-intake" hidden>
+              <p class="card-note">Daily Red runs on your own copy of Pokémon FireRed (English, 1.0 or Rev 1). It stays in this browser.</p>
+              <label class="button button-play" for="rom-file">Load ROM</label>
+              <input type="file" id="rom-file" hidden>
+              <p class="card-note rom-error" id="rom-error" role="alert" hidden></p>
+            </div>
             <div class="played" id="played" hidden>
               <p class="played-result" id="played-result"></p>
               <p class="played-next" id="played-next"></p>
@@ -87,7 +92,8 @@
 
     <footer class="footer">
       <p>Daily Red is a free, unofficial fan project. It isn't affiliated with or endorsed by Nintendo, Creatures Inc., GAME FREAK inc. or The Pokémon Company. Pokémon and all game content are © Nintendo, Creatures Inc. and GAME FREAK inc.</p>
-      <p><a href="licenses.txt">Licenses</a> · <a href="https://github.com/amoi-builds/dailyred">Source</a></p>
+      <p>You need your own copy of Pokémon FireRed (USA/Europe 1.0 or Rev 1). It never leaves your browser.</p>
+      <p><a href="licenses.txt">Licenses</a> · <a href="https://github.com/amoi-builds/dailyred">Source</a> · <button class="link-button" id="forget-rom" type="button" hidden>Forget my ROM</button></p>
     </footer>
   </main>
 </body>

@@ -3,7 +3,7 @@
 // uses, pressing buttons, and reading game RAM out of a save state.
 import { chromium } from 'playwright-core';
 import { spawn, execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,6 +17,20 @@ const CHROME_PATHS = [
   '/usr/bin/google-chrome',
   '/usr/bin/chromium',
 ].filter(Boolean);
+
+export const BASE_ROM = process.env.FIRERED_REV1;
+
+// The site no longer serves the game: tests load the player's ROM the way
+// the page does (into IndexedDB) before booting.
+export async function provideRom(page) {
+  if (!BASE_ROM) throw new Error('Set FIRERED_REV1 to a FireRed Rev 1 ROM to run the browser tests.');
+  const b64 = readFileSync(BASE_ROM).toString('base64');
+  await page.evaluate(async (data) => {
+    const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+    const { saveRom } = await import('/rom-store.js');
+    await saveRom(bytes);
+  }, b64);
+}
 
 export function findChrome() {
   const path = CHROME_PATHS.find((p) => existsSync(p));
@@ -50,6 +64,7 @@ export async function launchBrowser() {
 export async function bootGame(page, baseUrl, { seed, daily = false, wins = 0, battles = 0 } = {}) {
   await page.goto(`${baseUrl}/__test__`);
   await page.setContent('<canvas id="screen" width="480" height="320" style="display:block"></canvas>');
+  await provideRom(page);
   await page.evaluate(async ({ seed, daily, wins, battles }) => {
     const { Nostalgist } = await import('/vendor/nostalgist.js');
     const { injectConfig } = await import('/rom-config.js');

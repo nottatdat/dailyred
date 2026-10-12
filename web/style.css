@@ -136,14 +136,6 @@ a { color: inherit; text-underline-offset: 3px; }
 /* Title card: RED, the player's stats, then Play (or today's result). */
 .card-title { gap: 4.5cqh; padding: 4cqh; }
 
-.red-sprite {
-  position: relative;
-  height: 38cqh;
-  width: auto;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 1cqh 0 rgba(0, 0, 0, 0.35));
-}
-
 .stats {
   position: relative;
   display: grid;
@@ -455,3 +447,8 @@ kbd {
   .card-error .button-play { padding: 12px 32px; font-size: 22px; }
   .toolbar .button { padding: 10px 14px; font-size: 16px; }
 }
+
+.rom-intake { display: grid; gap: 2.5cqh; justify-items: center; text-align: center; }
+.rom-intake[hidden] { display: none; }
+.rom-error { color: #ff8a8f; }
+.link-button { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }

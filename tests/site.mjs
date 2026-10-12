@@ -2,9 +2,9 @@
 // game across several (faked) days: stats, one battle per day, win / loss /
 // abandoned battles, streaks, practice runs, the phone layout and the error
 // screen. Screenshots go to tests/output/site-*.png.
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import {
-  startServer, launchBrowser, sleep, press, getStatus, waitFor, startRedBattle, forceWin, forceLoss,
+  startServer, launchBrowser, BASE_ROM, provideRom, sleep, press, getStatus, waitFor, startRedBattle, forceWin, forceLoss,
 } from './lib.mjs';
 import { readParty } from './party.mjs';
 
@@ -62,12 +62,45 @@ try {
 
   // Day 1: a fresh visitor.
   await page.clock.setFixedTime(at(DAY1));
+  // --- Bring your own ROM -------------------------------------------------------
   await page.goto(server.url);
+  check(await page.locator('#rom-intake').isVisible(), 'no ROM: the intake prompt is shown');
+  check(await page.locator('#play').isHidden(), 'no ROM: Play is hidden');
+
+  await page.setInputFiles('#rom-file', { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
+  await page.waitForSelector('#rom-error:not([hidden])');
+  check((await page.textContent('#rom-error')) === "This isn't English Pokémon FireRed (1.0 or Rev 1).", 'a wrong file is rejected with the exact message');
+
+  await page.setInputFiles('#rom-file', { name: 'firered.bin', mimeType: 'application/octet-stream', buffer: readFileSync(BASE_ROM) });
+  await page.waitForSelector('#play:not([hidden])');
+  check(true, 'the ROM is accepted whatever its file name');
+
+  await page.reload();
+  check(await page.locator('#play').isVisible(), 'the ROM is remembered after a reload');
+
+  await page.click('#forget-rom');
+  await page.waitForSelector('#rom-intake:not([hidden])'); // forgetting is asynchronous
+  check(await page.locator('#rom-intake').isVisible(), '"Forget my ROM" brings the prompt back');
+  await page.setInputFiles('#rom-file', { name: 'firered.gba', mimeType: 'application/octet-stream', buffer: readFileSync(BASE_ROM) });
+  await page.waitForSelector('#play:not([hidden])');
+
+  // Private mode: IndexedDB throws, the ROM still works for the visit.
+  const privateCtx = await browser.newContext();
+  await privateCtx.addInitScript(() => { Object.defineProperty(window, 'indexedDB', { get() { throw new Error('blocked'); } }); });
+  const privatePage = await privateCtx.newPage();
+  await privatePage.goto(server.url);
+  await privatePage.setInputFiles('#rom-file', { name: 'firered.gba', mimeType: 'application/octet-stream', buffer: readFileSync(BASE_ROM) });
+  await privatePage.waitForSelector('#play:not([hidden])');
+  await privatePage.click('#play');
+  await privatePage.waitForFunction(() => document.querySelector('.app').dataset.state === 'playing', null, { timeout: 60000 });
+  check(true, 'without IndexedDB the game still starts');
+  await privateCtx.close();
+
+  check(await page.locator('img[src*="red.png"]').count() === 0, 'no RED sprite on the page');
   await sleep(1200);
   await page.screenshot({ path: `${OUT}/site-title.png`, fullPage: true });
   let s = await shown(page);
   check(s.canPlay && s.wins === '0' && s.losses === '0' && s.winStreak === '0' && s.dayStreak === '0', `new visitor sees Play and zeroed stats (${statLine(s)})`);
-  check(await page.evaluate(() => document.querySelector('.red-sprite').naturalWidth === 64), "RED's sprite is shown on the title card");
   const leftovers = await page.evaluate(() => ['.tagline', '.steps', '#seed', '#new-run'].filter((sel) => document.querySelector(sel)));
   check(leftovers.length === 0, `removed: tagline, how-it-works, seed, New run (${leftovers.join(', ') || 'none left'})`);
   const footer = await page.evaluate(() => document.querySelector('.footer')?.textContent || '');
@@ -105,6 +138,8 @@ try {
   const otherPage = await other.newPage();
   await otherPage.clock.setFixedTime(at(DAY1, '22:00:00'));
   await otherPage.goto(server.url);
+  await provideRom(otherPage);
+  await otherPage.reload();
   await otherPage.click('#play');
   await attach(otherPage);
   check(JSON.stringify(readParty((await getStatus(otherPage)).mem).party.map((m) => m.species)) === team1, 'everyone gets the same team on the same day');
@@ -164,6 +199,8 @@ try {
   const phoneContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   const phone = await phoneContext.newPage();
   await phone.goto(server.url);
+  await provideRom(phone);
+  await phone.reload();
   await sleep(1000);
   // Viewport-only screenshots: a fullPage capture resizes the viewport, which
   // makes Chromium drop the emulated touch pointer for the rest of the page.
@@ -196,13 +233,15 @@ try {
   // A failed download shows the error card, and Try again recovers.
   const brokenContext = await browser.newContext();
   const broken = await brokenContext.newPage();
-  await broken.route('**/game/dailyred.gba.gz', (route) => route.fulfill({ status: 404, body: 'missing' }));
+  await broken.route('**/game/dailyred-firered-rev1.bps', (route) => route.fulfill({ status: 404, body: 'missing' }));
   await broken.goto(server.url);
+  await provideRom(broken);
+  await broken.reload();
   await broken.click('#play');
   await broken.waitForFunction(() => document.querySelector('.app').dataset.state === 'error');
   const message = await broken.locator('#error-text').textContent();
   check(message.includes('HTTP 404'), `download failure shows an error ("${message}")`);
-  await broken.unroute('**/game/dailyred.gba.gz');
+  await broken.unroute('**/game/dailyred-firered-rev1.bps');
   await broken.click('#retry');
   await attach(broken);
   check(true, 'Try again starts the game after the error');

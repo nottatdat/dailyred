@@ -3,7 +3,8 @@
 // ROM; this file starts it with the day's seed, watches for the result, and
 // keeps the stats (see daily.js).
 import { Nostalgist } from './vendor/nostalgist.js';
-import { loadGameFiles } from './game-files.js';
+import { loadGameFiles, resetGameFiles, NoRomError } from './game-files.js';
+import { identifyRom, loadRom, saveRom, forgetRom, WRONG_ROM_MESSAGE } from './rom-store.js';
 import { injectConfig, parseSeed } from './rom-config.js';
 import { createGameLink, PHASE, RESULT } from './game-link.js';
 import {
@@ -15,6 +16,7 @@ const $ = (id) => document.getElementById(id);
 const app = document.querySelector('.app');
 const screen = $('screen');
 const ui = {
+  romIntake: $('rom-intake'), romFile: $('rom-file'), romError: $('rom-error'), forgetRom: $('forget-rom'),
   play: $('play'),
   retry: $('retry'),
   sound: $('sound'),
@@ -51,6 +53,7 @@ let runDate = null;
 let battleSeen = false;
 let muted = session.get('dailyred-muted') === '1';
 let starting = false;
+let hasRom = false;
 let titleDate = null;
 
 // RetroArch opens a Web Audio context for each emulator and never closes it,
@@ -85,7 +88,9 @@ function renderTitle() {
   ui.dayStreak.textContent = dayStreak;
 
   const result = practiceSeed ? null : resultFor(stats, titleDate);
-  ui.play.hidden = Boolean(result);
+  ui.romIntake.hidden = hasRom;
+  ui.forgetRom.hidden = !hasRom;
+  ui.play.hidden = Boolean(result) || !hasRom;
   ui.played.hidden = !result;
   ui.practiceNote.hidden = !practiceSeed;
   if (result) ui.playedResult.textContent = result === 'won' ? 'You beat RED today!' : 'RED won today.';
@@ -115,7 +120,7 @@ setInterval(() => {
 const megabytes = (n) => (n / 1048576).toFixed(1);
 
 function checkBrowser() {
-  if (typeof WebAssembly !== 'object' || typeof DecompressionStream !== 'function') {
+  if (typeof WebAssembly !== 'object' || !globalThis.crypto?.subtle) {
     throw new Error("This browser can't run the game. Use a recent version of Chrome, Edge, Firefox or Safari.");
   }
 }
@@ -189,6 +194,15 @@ async function startRun() {
     pollTimer = setInterval(watchGame, 500);
     setState('playing');
   } catch (err) {
+    if (err instanceof NoRomError) {
+      stopEmulator();
+      hasRom = false;
+      renderTitle();
+      ui.romError.textContent = err.message === WRONG_ROM_MESSAGE ? err.message : '';
+      ui.romError.hidden = !ui.romError.textContent;
+      setState('title');
+      return;
+    }
     console.error(err);
     stopEmulator();
     // fetch() rejects with a TypeError when the network itself fails.
@@ -345,12 +359,50 @@ dpad.addEventListener('pointermove', (event) => {
 dpad.addEventListener('pointerup', () => setDirection(null));
 dpad.addEventListener('pointercancel', () => setDirection(null));
 
+// --- The player's ROM ---------------------------------------------------------------
+
+async function acceptRomFile(file) {
+  ui.romError.hidden = true;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (!(await identifyRom(bytes))) {
+    ui.romError.textContent = WRONG_ROM_MESSAGE;
+    ui.romError.hidden = false;
+    return;
+  }
+  await saveRom(bytes);
+  resetGameFiles();
+  hasRom = true;
+  renderTitle();
+}
+
+ui.romFile.addEventListener('change', () => {
+  const [file] = ui.romFile.files;
+  ui.romFile.value = ''; // picking the same file again still fires 'change'
+  if (file) acceptRomFile(file);
+});
+screen.addEventListener('dragover', (event) => {
+  if (app.dataset.state === 'title' && !hasRom) event.preventDefault();
+});
+screen.addEventListener('drop', (event) => {
+  if (app.dataset.state !== 'title' || hasRom) return;
+  event.preventDefault();
+  const [file] = event.dataTransfer.files;
+  if (file) acceptRomFile(file);
+});
+onClick(ui.forgetRom, async () => {
+  await forgetRom();
+  resetGameFiles();
+  hasRom = false;
+  renderTitle();
+});
+
 // For debugging from the console and for the automated tests.
 window.dailyRed = {
   get emulator() { return emu; },
   get stats() { return { ...stats }; },
 };
 
+hasRom = Boolean(await loadRom()); // module scripts allow top-level await
 renderTitle();
 setState('title');
 showMuted();
