@@ -67,6 +67,8 @@ try {
   check(await page.locator('#rom-intake').isVisible(), 'no ROM: the intake prompt is shown');
   check(await page.locator('#play').isHidden(), 'no ROM: Play is hidden');
 
+  await page.focus('#load-rom');
+  check(await page.evaluate(() => document.activeElement.id) === 'load-rom', 'the Load ROM button is keyboard-focusable');
   await page.setInputFiles('#rom-file', { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
   await page.waitForSelector('#rom-error:not([hidden])');
   check((await page.textContent('#rom-error')) === "This isn't English Pokémon FireRed (1.0 or Rev 1).", 'a wrong file is rejected with the exact message');

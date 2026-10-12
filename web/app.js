@@ -16,7 +16,7 @@ const $ = (id) => document.getElementById(id);
 const app = document.querySelector('.app');
 const screen = $('screen');
 const ui = {
-  romIntake: $('rom-intake'), romFile: $('rom-file'), romError: $('rom-error'), forgetRom: $('forget-rom'),
+  romIntake: $('rom-intake'), romFile: $('rom-file'), loadRom: $('load-rom'), romError: $('rom-error'), forgetRom: $('forget-rom'),
   play: $('play'),
   retry: $('retry'),
   sound: $('sound'),
@@ -389,6 +389,7 @@ screen.addEventListener('drop', (event) => {
   const [file] = event.dataTransfer.files;
   if (file) acceptRomFile(file);
 });
+onClick(ui.loadRom, () => ui.romFile.click());
 onClick(ui.forgetRom, async () => {
   await forgetRom();
   resetGameFiles();
