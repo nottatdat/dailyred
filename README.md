@@ -12,46 +12,83 @@ small set of source changes, built into a GBA ROM and played in the browser
 through the mGBA emulator compiled to WebAssembly. Nothing about battles is
 reimplemented in JavaScript.
 
+You need your own Pokémon FireRed ROM (English, 1.0 or Rev 1); the site turns
+it into Daily Red in your browser. The site itself contains no game data, only
+patches.
+
 - [Quick start (macOS)](#quick-start-macos)
+- [Quick start (Linux)](#quick-start-linux)
 - [How it works](#how-it-works)
 - [Team generation](#team-generation)
 - [RED's team](#reds-team)
 - [Development workflow](#development-workflow)
 - [Testing and debugging](#testing-and-debugging)
-- [Running it locally](#running-it-locally)
+- [Hosting](#hosting)
 - [Copyright and licenses](#copyright-and-licenses)
 - [Known limitations](#known-limitations)
 
 ## Quick start (macOS)
 
 You need the Xcode Command Line Tools (`xcode-select --install`), Node.js 18+
-and git. No Homebrew, no `sudo`, and **no ROM**: the decompilation builds the
-whole game from source.
+and git. No Homebrew, no `sudo`, and no ROM to *build* the game: the
+decompilation builds it from source. (Playing the site needs your own FireRed
+ROM; see the Linux steps below for how the patches are made.)
 
 ```sh
 scripts/setup-macos.sh      # ARM cross-compiler + libpng into .toolchain/ (~1 GB, one time)
 scripts/get-pokefirered.sh  # pret/pokefirered at a pinned commit + patches/
 scripts/fetch-vendor.sh     # emulator, emulator core and font into web/vendor/
-scripts/build-rom.sh        # builds the ROM, writes web/game/dailyred.gba.gz
+scripts/build-rom.sh        # builds the Daily Red ROM (pokefirered/pokefirered_modern.gba)
 node scripts/serve.mjs      # open http://localhost:8080
 ```
 
 `setup-macos.sh` picks the right compiler for Intel or Apple Silicon Macs.
 
+## Quick start (Linux)
+
+You need Node.js 18+, git, make, a C compiler and the libpng development
+files. No `sudo` for the scripts themselves. Besides the Daily Red ROM you
+need the patches the site serves, and those are made against a retail FireRed
+Rev 1 ROM that you supply.
+
+```sh
+scripts/setup-linux.sh      # xPack arm-none-eabi-gcc 14.2.1 + pret/agbcc + Flips into .toolchain/
+scripts/get-pokefirered.sh  # pret/pokefirered at a pinned commit + patches/
+scripts/fetch-vendor.sh     # emulator, emulator core and font into web/vendor/
+scripts/build-rom.sh        # builds the Daily Red ROM (pokefirered/pokefirered_modern.gba)
+FIRERED_REV1="/path/to/FireRed (USA, Europe) Rev 1.gba" scripts/make-patch.sh
+node scripts/serve.mjs      # open http://localhost:8080
+```
+
+`make-patch.sh` builds a byte-exact vanilla FireRed 1.0 with agbcc, checks
+both base ROMs by SHA-1, and writes `web/game/dailyred-firered-1.0.bps`,
+`web/game/dailyred-firered-rev1.bps` (about 1.4 MB each) and
+`web/game/patches.json`. It deletes any ROM it finds in `web/game/`, so the
+site never contains game data.
+
 ## How it works
 
 ```
 pret/pokefirered @ 037335f + patches/  ──make modern──▶  pokefirered_modern.gba
-                                                              │ gzip (16 MB → 5.5 MB)
+                                                              │ flips (scripts/make-patch.sh)
 web/ (static files)                                           ▼
-  index.html + app.js ── fetch ──▶ game/dailyred.gba.gz, vendor/mgba_libretro.wasm
-        │  writes the day's seed + your record into the ROM bytes (rom-config.js)
+  game/dailyred-firered-{1.0,rev1}.bps + patches.json
+  index.html + app.js ── fetch ──▶ those patches, vendor/mgba_libretro.wasm
+        │  player's ROM (IndexedDB) + patch → bps.js → rom-config.js
+        │  (rom-config.js writes the day's seed + your record into the ROM bytes)
         ▼
   Nostalgist.js ──▶ RetroArch + mGBA core (WebAssembly) ──▶ <canvas>
         ▲
         └─ game-link.js reads the battle's status from the game's RAM
            → daily.js updates your stats in localStorage
 ```
+
+**Your ROM stays with you:** `web/rom-store.js` recognises the ROM you load
+(button or drag-and-drop) by its SHA-1 (FireRed 1.0 `41cb23d8…2e2fdc` or Rev 1
+`dd5945db…eb417`), keeps the original in your browser's IndexedDB (in memory
+only if the browser blocks it), and `web/bps.js` applies the matching patch.
+`web/game-files.js` hands the patched ROM to the same config and emulator flow
+as before. "Forget my ROM" removes it. Nothing is uploaded anywhere.
 
 **Why an emulator instead of compiling the C to WebAssembly:** the decomp is
 written for GBA hardware (video, DMA, interrupts, the m4a sound engine,
@@ -266,9 +303,16 @@ The tests boot the real ROM in headless Chrome through the same emulator the
 website uses, press buttons, and read game RAM out of emulator save states
 (mGBA's state contains a raw copy of RAM).
 
+`smoke` and `site` need `FIRERED_REV1` (path to your Rev 1 ROM) and
+`CHROME_PATH` (a Chrome/Chromium binary; on Linux
+`npx playwright-core install chromium` provides one). Unit tests run with
+`cd tests && node --test unit/*.test.mjs`.
+
 ```sh
 cd tests
-npm install        # playwright-core only; it drives your installed Google Chrome
+npm install        # playwright-core only; it drives a Chrome/Chromium
+export FIRERED_REV1="/path/to/FireRed (USA, Europe) Rev 1.gba"
+export CHROME_PATH=/path/to/chrome
 npm run smoke      # the game loop (~3 min)
 npm run site       # the website on desktop and phone (~1 min)
 npm run teams -- 1 2 3            # print + validate the teams for these seeds
@@ -317,22 +361,24 @@ screen with "Try again".
 **In the browser console:** `dailyRed.emulator` is the running Nostalgist
 instance and `dailyRed.stats` shows your saved stats.
 
-## Running it locally
+## Hosting
 
-Daily Red is meant to be played on your own computer. After the quick start,
-`web/` holds the whole site (about 9 MB), and `node scripts/serve.mjs` serves
-it at http://localhost:8080:
+`web/` is static and contains no game data: the page, the emulator in
+`web/vendor/`, and the two patches with `patches.json` in `web/game/`. Any
+static file server works. Locally, `node scripts/serve.mjs` serves it at
+http://localhost:8080 (pass a port to change it). The live site,
+https://red.tatd.at, is deployed with
 
+```sh
+HOST=127.0.0.1 node scripts/serve.mjs 8030
 ```
-web/index.html  app.js  daily.js  game-link.js  game-files.js  rom-config.js  style.css  favicon.svg  licenses.txt
-web/vendor/     emulator (3.4 MB) + font
-web/game/       dailyred.gba.gz (5.5 MB), built on your machine
-```
 
-To use another port, pass it: `node scripts/serve.mjs 3000`. Your stats are
-saved in the browser for that address, so keep using the same port to keep
-your streaks. After rebuilding the ROM (`scripts/build-rom.sh`), reload the
-page.
+behind a Cloudflare tunnel; the `deploy/` directory holds `deploy.sh`, the
+systemd user units and the cloudflared tunnel config.
+
+Your stats are saved in the browser for that address, so keep using the same
+origin to keep your streaks. After editing the game, rebuild with
+`scripts/build-rom.sh` and `scripts/make-patch.sh` and reload the page.
 
 ## Copyright and licenses
 
@@ -341,9 +387,11 @@ endorsed by Nintendo, Creatures Inc., GAME FREAK inc. or The Pokémon Company.
 Pokémon and all related names, characters and game content are © Nintendo,
 Creatures Inc. and GAME FREAK inc.
 
-This repository contains Daily Red's own work: the changes in `patches/`, the
-website and the tests. It doesn't include pret/pokefirered or a built ROM; the
-scripts fetch the decompilation from pret's repository and build locally.
+This repository and the website contain no game data: the site ships only
+patches and needs the player's own ROM. The repository holds Daily Red's own
+work: the changes in `patches/`, the website and the tests. It doesn't include
+pret/pokefirered or a built ROM; the scripts fetch the decompilation from
+pret's repository and build locally.
 
 The emulator core is GPL-3.0 (RetroArch) and MPL-2.0 (mGBA). `web/licenses.txt`
 lists all third-party components with links to their source, and the page
@@ -374,11 +422,13 @@ footer links to it.
 ```
 patches/pokefirered-dailyred.patch   all changes to pret/pokefirered
 scripts/setup-macos.sh               toolchain (xPack arm-none-eabi-gcc 14.2.1 + libpng)
+scripts/setup-linux.sh               toolchain (xPack gcc 14.2.1 + agbcc + Flips)
 scripts/get-pokefirered.sh           pinned upstream checkout + patch
 scripts/save-patch.sh                pokefirered/ changes → patches/
-scripts/build-rom.sh                 make modern → web/game/dailyred.gba.gz
+scripts/build-rom.sh                 make modern → pokefirered/pokefirered_modern.gba
+scripts/make-patch.sh                your Rev 1 ROM → web/game/*.bps + patches.json
 scripts/fetch-vendor.sh              Nostalgist, mGBA core, font (pinned, checksummed)
-scripts/serve.mjs                    local static server
+scripts/serve.mjs                    static server (HOST/port configurable)
 web/                                 the website
 tests/                               headless browser tests and the teams tool
 ```
