@@ -28,11 +28,24 @@ function request(mode, run) {
     const open = indexedDB.open(DB, 1);
     open.onupgradeneeded = () => open.result.createObjectStore(STORE);
     open.onerror = () => reject(open.error);
+    open.onblocked = () => reject(new Error('IndexedDB blocked'));
     open.onsuccess = () => {
       const db = open.result;
-      const req = run(db.transaction(STORE, mode).objectStore(STORE));
-      req.onsuccess = () => { db.close(); resolve(req.result); };
-      req.onerror = () => { db.close(); reject(req.error); };
+      db.onversionchange = () => db.close();
+      const fail = (err) => { db.close(); reject(err); };
+      try {
+        const tx = db.transaction(STORE, mode);
+        const req = run(tx.objectStore(STORE));
+        let result;
+        req.onsuccess = () => { result = req.result; };
+        // Resolve only once the transaction has committed, so a failed write
+        // (e.g. quota) rejects instead of reporting success.
+        tx.oncomplete = () => { db.close(); resolve(result); };
+        tx.onabort = () => fail(tx.error ?? new Error('IndexedDB transaction aborted'));
+        tx.onerror = () => fail(tx.error ?? new Error('IndexedDB transaction error'));
+      } catch (err) {
+        fail(err);
+      }
     };
   });
 }
