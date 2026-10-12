@@ -64,7 +64,8 @@ try {
   await page.clock.setFixedTime(at(DAY1));
   // --- Bring your own ROM -------------------------------------------------------
   await page.goto(server.url);
-  check(await page.locator('#rom-intake').isVisible(), 'no ROM: the intake prompt is shown');
+  const intake = await page.waitForSelector('#rom-intake:not([hidden])', { timeout: 15000 }).then(() => true, () => false);
+  check(intake && await page.locator('#rom-intake').isVisible(), 'no ROM: the intake prompt is shown');
   check(await page.locator('#play').isHidden(), 'no ROM: Play is hidden');
 
   await page.focus('#load-rom');
@@ -81,7 +82,8 @@ try {
   check(true, 'the ROM is accepted whatever its file name');
 
   await page.reload();
-  check(await page.locator('#play').isVisible(), 'the ROM is remembered after a reload');
+  const remembered = await page.waitForSelector('#forget-rom:not([hidden])', { timeout: 15000 }).then(() => true, () => false);
+  check(remembered && await page.locator('#play').isVisible(), 'the ROM is remembered after a reload');
 
   await page.click('#forget-rom');
   await page.waitForSelector('#rom-intake:not([hidden])'); // forgetting is asynchronous
