@@ -22,8 +22,9 @@ set -euo pipefail
 CF=~/.local/bin/cloudflared
 $CF tunnel list 2>/dev/null | awk '{print $2}' | grep -qx dailyred || $CF tunnel create dailyred
 ID="$($CF tunnel list 2>/dev/null | awk '$2=="dailyred"{print $1}')"
-$CF tunnel route dns "$ID" red.tatd.at 2>&1 | grep -v 'already exists' || true
 sed -e "s|@TUNNEL_ID@|$ID|g" -e "s|@HOME@|$HOME|g" ~/sites/dailyred/red.yml.in > ~/.cloudflared/red.yml
+# Pass red.yml explicitly: the default ~/.cloudflared/config.yml names another tunnel and would win.
+$CF --config ~/.cloudflared/red.yml tunnel route dns "$ID" red.tatd.at 2>&1 | grep -v 'already exists' || true
 systemctl --user daemon-reload
 systemctl --user enable --now dailyred.service red-tunnel.service
 systemctl --user restart dailyred.service
