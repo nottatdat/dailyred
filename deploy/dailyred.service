@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Red static site (127.0.0.1:8030, public via red-tunnel)
+After=network-online.target
+
+[Service]
+Environment=HOST=127.0.0.1
+Environment=WEB_ROOT=%h/sites/dailyred/web
+ExecStart=/usr/bin/node %h/sites/dailyred/serve.mjs 8030
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

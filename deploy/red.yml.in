@@ -1,0 +1,6 @@
+tunnel: @TUNNEL_ID@
+credentials-file: @HOME@/.cloudflared/@TUNNEL_ID@.json
+ingress:
+  - hostname: red.tatd.at
+    service: http://127.0.0.1:8030
+  - service: http_status:404

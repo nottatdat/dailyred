@@ -1,0 +1,11 @@
+[Unit]
+Description=Cloudflare tunnel dailyred: red.tatd.at -> Daily Red
+After=network-online.target dailyred.service
+
+[Service]
+ExecStart=%h/.local/bin/cloudflared tunnel --no-autoupdate --config %h/.cloudflared/red.yml run dailyred
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

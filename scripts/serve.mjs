@@ -5,7 +5,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = resolve(fileURLToPath(new URL('../web', import.meta.url)));
+const root = resolve(process.env.WEB_ROOT || fileURLToPath(new URL('../web', import.meta.url)));
 const port = Number(process.argv[2] || process.env.PORT || 8080);
 
 const types = {
@@ -16,6 +16,7 @@ const types = {
   '.json': 'application/json; charset=utf-8',
   '.wasm': 'application/wasm',
   '.gba': 'application/octet-stream',
+  '.bps': 'application/octet-stream',
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
@@ -39,6 +40,7 @@ const server = createServer(async (req, res) => {
     res.end('Not found');
   }
 });
-server.listen(port, () => {
-  console.log(`Serving ${root} at http://localhost:${server.address().port}`);
+const host = process.env.HOST || undefined; // e.g. 127.0.0.1 behind a tunnel
+server.listen(port, host, () => {
+  console.log(`Serving ${root} at http://${host ?? 'localhost'}:${server.address().port}`);
 });
