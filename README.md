@@ -283,7 +283,7 @@ come from FireRed's usual name-based formula and aren't configurable.
 
 1. Edit files in `pokefirered/` (a git checkout of pret's repo).
 2. `scripts/build-rom.sh` (incremental builds take a few seconds).
-3. Reload the page. `scripts/serve.mjs` sends `Cache-Control: no-cache`.
+3. Run `FIRERED_REV1=… scripts/make-patch.sh` and reload the page. `scripts/serve.mjs` sends `Cache-Control: no-cache`.
 4. When you're happy, run `scripts/save-patch.sh` and commit
    `patches/pokefirered-dailyred.patch`.
 
