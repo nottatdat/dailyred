@@ -4,7 +4,7 @@
 // keeps the stats (see daily.js).
 import { Nostalgist } from './vendor/nostalgist.js';
 import { loadGameFiles, resetGameFiles, NoRomError } from './game-files.js';
-import { identifyRom, loadRom, saveRom, forgetRom, WRONG_ROM_MESSAGE } from './rom-store.js';
+import { ROM_SIZE, identifyRom, loadRom, saveRom, forgetRom, WRONG_ROM_MESSAGE } from './rom-store.js';
 import { injectConfig, parseSeed } from './rom-config.js';
 import { createGameLink, PHASE, RESULT } from './game-link.js';
 import {
@@ -363,16 +363,22 @@ dpad.addEventListener('pointercancel', () => setDirection(null));
 
 async function acceptRomFile(file) {
   ui.romError.hidden = true;
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  if (!(await identifyRom(bytes))) {
-    ui.romError.textContent = WRONG_ROM_MESSAGE;
+  ui.romError.textContent = ''; // so a repeated rejection is announced again
+  const reject = (message) => {
+    ui.romError.textContent = message;
     ui.romError.hidden = false;
-    return;
+  };
+  if (file.size !== ROM_SIZE) return reject(WRONG_ROM_MESSAGE); // never read a huge file
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (!(await identifyRom(bytes))) return reject(WRONG_ROM_MESSAGE);
+    await saveRom(bytes);
+    resetGameFiles();
+    hasRom = true;
+    renderTitle();
+  } catch {
+    reject("Couldn't read that file.");
   }
-  await saveRom(bytes);
-  resetGameFiles();
-  hasRom = true;
-  renderTitle();
 }
 
 ui.romFile.addEventListener('change', () => {

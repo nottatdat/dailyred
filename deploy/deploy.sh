@@ -10,6 +10,9 @@ if find "$ROOT/web" \( -iname '*.gba' -o -iname '*.gba.gz' -o -iname 'red.png' \
   echo "web/ contains game data; refusing to deploy."; exit 1
 fi
 [ -f "$ROOT/web/game/patches.json" ] || { echo "Run scripts/make-patch.sh first."; exit 1; }
+for f in mgba_libretro.wasm mgba_libretro.js; do
+  [ -f "$ROOT/web/vendor/$f" ] || { echo "web/vendor/$f missing; refusing to deploy."; exit 1; }
+done
 
 ssh "$HOST" 'mkdir -p ~/sites/dailyred ~/.config/systemd/user'
 rsync -a --delete "$ROOT/web/" "$HOST:sites/dailyred/web/"
@@ -24,7 +27,12 @@ $CF tunnel list 2>/dev/null | awk '{print $2}' | grep -qx dailyred || $CF tunnel
 ID="$($CF tunnel list 2>/dev/null | awk '$2=="dailyred"{print $1}')"
 sed -e "s|@TUNNEL_ID@|$ID|g" -e "s|@HOME@|$HOME|g" ~/sites/dailyred/red.yml.in > ~/.cloudflared/red.yml
 # Pass red.yml explicitly: the default ~/.cloudflared/config.yml names another tunnel and would win.
-$CF --config ~/.cloudflared/red.yml tunnel route dns "$ID" red.tatd.at 2>&1 | grep -v 'already exists' || true
+if OUT="$($CF --config ~/.cloudflared/red.yml tunnel route dns "$ID" red.tatd.at 2>&1)"; then
+  echo "$OUT"
+else
+  echo "$OUT"
+  echo "$OUT" | grep -qiE 'already (exists|configured)' || { echo "route dns failed"; exit 1; }
+fi
 systemctl --user daemon-reload
 systemctl --user enable --now dailyred.service red-tunnel.service
 systemctl --user restart dailyred.service

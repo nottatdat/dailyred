@@ -2,7 +2,7 @@
 //   node scripts/serve.mjs [port]      -> serves ./web on http://localhost:8080
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { extname, join, normalize, resolve } from 'node:path';
+import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(process.env.WEB_ROOT || fileURLToPath(new URL('../web', import.meta.url)));
@@ -27,7 +27,7 @@ const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
     let path = normalize(join(root, decodeURIComponent(url.pathname)));
-    if (!path.startsWith(root)) throw Object.assign(new Error('forbidden'), { code: 'EACCES' });
+    if (path !== root && !path.startsWith(root + sep)) throw Object.assign(new Error('forbidden'), { code: 'EACCES' });
     if ((await stat(path)).isDirectory()) path = join(path, 'index.html');
     const body = await readFile(path);
     res.writeHead(200, {

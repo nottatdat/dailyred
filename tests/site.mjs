@@ -72,6 +72,9 @@ try {
   await page.setInputFiles('#rom-file', { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') });
   await page.waitForSelector('#rom-error:not([hidden])');
   check((await page.textContent('#rom-error')) === "This isn't English Pokémon FireRed (1.0 or Rev 1).", 'a wrong file is rejected with the exact message');
+  await page.setInputFiles('#rom-file', { name: 'big.bin', mimeType: 'application/octet-stream', buffer: Buffer.alloc(16 * 1024 * 1024 + 1) });
+  await page.waitForSelector('#rom-error:not([hidden])');
+  check((await page.textContent('#rom-error')) === "This isn't English Pokémon FireRed (1.0 or Rev 1).", 'an oversized file is rejected with the exact message');
 
   await page.setInputFiles('#rom-file', { name: 'firered.bin', mimeType: 'application/octet-stream', buffer: readFileSync(BASE_ROM) });
   await page.waitForSelector('#play:not([hidden])');

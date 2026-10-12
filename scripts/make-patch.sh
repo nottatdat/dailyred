@@ -46,7 +46,7 @@ fi
 
 # --- Patches -----------------------------------------------------------------
 mkdir -p "$OUT"
-rm -f "$OUT"/*.gba "$OUT"/*.gba.gz "$OUT"/red.png "$OUT"/*.bps
+rm -f "$OUT"/*.gba "$OUT"/*.gba.gz "$OUT"/red.png "$OUT"/*.bps "$OUT/patches.json"
 "$TC/bin/flips" --create --bps-delta "$VAN/pokefirered.gba" "$BUILT" "$OUT/dailyred-firered-1.0.bps"
 "$TC/bin/flips" --create --bps-delta "$FIRERED_REV1" "$BUILT" "$OUT/dailyred-firered-rev1.bps"
 

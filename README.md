@@ -114,7 +114,7 @@ file server works without special headers. Everything loads from `web/vendor/`.
 - **Site → game:** the ROM contains a small struct, `gDailyRedRomConfig`: the
   magic bytes `DAILYRED-CONF-V2`, then the seed, the player's wins and battles
   so far, and a "daily" flag. Before booting, `web/rom-config.js` finds the
-  magic bytes in the downloaded ROM and fills them in; no addresses are
+  magic bytes in the patched ROM and fills them in; no addresses are
   hard-coded on either side. The game uses the record for its "Record: x
   win(s) in x battle(s)" message.
 - **Game → site:** the game keeps a status block in RAM (`sStatus` in
@@ -288,7 +288,8 @@ come from FireRed's usual name-based formula and aren't configurable.
 
 1. Edit files in `pokefirered/` (a git checkout of pret's repo).
 2. `scripts/build-rom.sh` (incremental builds take a few seconds).
-3. Run `FIRERED_REV1=… scripts/make-patch.sh` and reload the page. `scripts/serve.mjs` sends `Cache-Control: no-cache`.
+3. Run `FIRERED_REV1=/path/to/rev1.gba scripts/make-patch.sh` and reload the
+   page. `scripts/serve.mjs` sends `Cache-Control: no-cache`.
 4. When you're happy, run `scripts/save-patch.sh` and commit
    `patches/pokefirered-dailyred.patch`.
 
@@ -419,8 +420,8 @@ footer links to it.
 - **Audio** can't be checked by the headless tests. Browsers start audio
   suspended unless it begins during a click, so the game resumes it on the
   next key press or tap.
-- **Tested environment:** macOS with Google Chrome (headless, desktop and
-  phone emulation). Not yet tried on Safari, Firefox or real phones.
+- **Tested environment:** macOS with Google Chrome and Linux with Chromium
+  (Playwright), headless, desktop and phone emulation. Not yet tried on Safari, Firefox or real phones.
 - The L/R buttons still open FireRed's built-in help, which describes the
   normal game.
 
