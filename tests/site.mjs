@@ -199,6 +199,24 @@ try {
   await startRedBattle(page);
   await sleep(1000);
   check(JSON.stringify(await saved(page)) === before, 'practice battles are not recorded');
+
+  // Reset stats: asks first, then wipes the results and unlocks today.
+  await page.goto(server.url);
+  await sleep(800);
+  check(!(await shown(page)).canPlay && await page.locator('#reset-stats').isVisible(), 'a played day shows "Reset stats"');
+  page.once('dialog', (d) => d.dismiss());
+  await page.click('#reset-stats');
+  await sleep(300);
+  check(JSON.stringify(await saved(page)) === before, 'cancelling the reset keeps the stats');
+  page.once('dialog', (d) => d.accept());
+  await page.click('#reset-stats');
+  await sleep(300);
+  s = await shown(page);
+  check(s.canPlay && s.wins === '0' && s.losses === '0' && s.winStreak === '0' && s.dayStreak === '0' && await saved(page) === null, `reset zeroes the stats and brings Play back (${statLine(s)})`);
+  check(await page.locator('#reset-stats').isHidden(), '"Reset stats" hides when there is nothing to reset');
+  await page.reload();
+  await sleep(800);
+  check((await shown(page)).canPlay, 'the reset survives a reload');
   check(errors.length === 0, `no page errors (${errors.join('; ') || 'none'})`);
   await context.close();
 

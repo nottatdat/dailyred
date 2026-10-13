@@ -98,6 +98,17 @@ export function recordResult(stats, date, won) {
   save(stats);
 }
 
+// Forget every result, so today's battle can be played again.
+export function resetStats() {
+  memoryCopy = null;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage blocked: only the in-memory copy existed.
+  }
+  return { ...EMPTY };
+}
+
 // A battle that started but never finished (tab closed, page reloaded) is a loss.
 export function settleAbandonedGame(stats) {
   if (stats.pending && stats.pending !== stats.lastPlayed) {

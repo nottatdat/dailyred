@@ -9,7 +9,7 @@ import { injectConfig, parseSeed } from './rom-config.js';
 import { createGameLink, PHASE, RESULT } from './game-link.js';
 import {
   today, dailySeed, msUntilTomorrow, loadStats, resultFor, currentStreaks,
-  markBattleStarted, recordResult, settleAbandonedGame,
+  markBattleStarted, recordResult, settleAbandonedGame, resetStats,
 } from './daily.js';
 
 const $ = (id) => document.getElementById(id);
@@ -17,6 +17,7 @@ const app = document.querySelector('.app');
 const screen = $('screen');
 const ui = {
   romIntake: $('rom-intake'), romFile: $('rom-file'), loadRom: $('load-rom'), romError: $('rom-error'), forgetRom: $('forget-rom'),
+  resetStatsItem: $('reset-stats-item'), resetStats: $('reset-stats'),
   play: $('play'),
   retry: $('retry'),
   sound: $('sound'),
@@ -90,6 +91,7 @@ function renderTitle() {
   const result = practiceSeed ? null : resultFor(stats, titleDate);
   ui.romIntake.hidden = hasRom;
   ui.forgetRom.hidden = !hasRom;
+  ui.resetStatsItem.hidden = stats.wins + stats.losses === 0 && !stats.pending;
   ui.play.hidden = Boolean(result) || !hasRom;
   ui.played.hidden = !result;
   ui.practiceNote.hidden = !practiceSeed;
@@ -400,6 +402,12 @@ onClick(ui.forgetRom, async () => {
   await forgetRom();
   resetGameFiles();
   hasRom = false;
+  renderTitle();
+});
+onClick(ui.resetStats, () => {
+  if (app.dataset.state !== 'title') return;
+  if (!confirm('Reset your wins, losses and streaks? You can then play today\'s battle again.')) return;
+  stats = resetStats();
   renderTitle();
 });
 
