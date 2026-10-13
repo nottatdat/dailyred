@@ -1,5 +1,8 @@
 # Daily Red
 
+A fork of [amoi-builds/dailyred](https://github.com/amoi-builds/dailyred)
+that players run on their own FireRed ROM; it's hosted at https://red.tatd.at.
+
 A daily Pokémon battle in the browser, like Wordle: once a day you press
 **Play**, get the day's six random level 100 Pokémon from Generations 1–3
 (everyone gets the same team that day), and climb to RED at the top of the
